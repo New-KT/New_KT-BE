@@ -97,7 +97,7 @@ TEMPLATES = [
 #     'django.contrib.auth.backends.ModelBackend',
 # )
 WSGI_APPLICATION = 'backend.wsgi.application'
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # 예시, React 애플리케이션의 주소에 맞게 변경
     "http://192.168.56.1:3000",

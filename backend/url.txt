@@ -1,7 +1,6 @@
-login = http://127.0.0.1:8000/users/login
-signup = http://127.0.0.1:8000/users/register
+login = http://127.0.0.1:8000/users/login/
+signup = http://127.0.0.1:8000/users/register/
 
-schedule = http://127.0.0.1:8000/schedule
+schedule = http://127.0.0.1:8000/schedule/
 
-schedule_add = http://127.0.0.1:8000/schedule/create
-
+schedule_add = http://127.0.0.1:8000/schedule/create/
