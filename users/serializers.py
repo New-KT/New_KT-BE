@@ -55,18 +55,17 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, data):
-        print(data)
+
         email = data.get('email')
         # # username = data.get('username')
         username = email.split('@')[0]
         password = data.get('password')
         
-        print(email)
-        print(username)
+
         if email and password:
             # authenticate 함수 호출 시 username 대신에 email 사용
             user = authenticate(request=self.context.get('request'), username=username, password=password)
-            print(user)
+
             if user:
                 # Token 생성 시 get_or_create 대신에 create 사용
                 token, created = Token.objects.get_or_create(user=user)
