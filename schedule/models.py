@@ -21,7 +21,7 @@ class Event(models.Model):
     # allDay = models.BooleanField(default=False)
     
     # 이벤트와 연결된 사용자를 나타내는 외래 키
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events', default=1)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')
     
     def __str__(self):
         return self.title

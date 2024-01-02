@@ -16,5 +16,5 @@ class LoginView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        token = serializer.validated_data['token']  # 'token' 키를 사용하여 값에 접근
-        return Response({"token": token}, status=status.HTTP_200_OK)
+        response_data = serializer.validated_data
+        return Response(response_data, status=status.HTTP_200_OK)
