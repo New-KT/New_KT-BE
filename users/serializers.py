@@ -50,27 +50,24 @@ class RegisterSerializer(serializers.ModelSerializer):
         token = Token.objects.create(user=user)
         return user
 class LoginSerializer(serializers.Serializer):
-    # username = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, data):
-
         email = data.get('email')
-        # # username = data.get('username')
         username = email.split('@')[0]
         password = data.get('password')
-        
 
         if email and password:
-            # authenticate 함수 호출 시 username 대신에 email 사용
             user = authenticate(request=self.context.get('request'), username=username, password=password)
 
             if user:
-                # Token 생성 시 get_or_create 대신에 create 사용
                 token, created = Token.objects.get_or_create(user=user)
-                return {'token': token.key}
+                return {
+                    'access_token': token.key,
+                    'username': user.username,  # Include the username in the response
+                }
 
-            raise serializers.ValidationError({"error": "제공된 자격 증명으로 로그인할 수 없습니다."})
-        
-        raise serializers.ValidationError({"error": "이메일 및 비밀번호를 포함해야 합니다."})
+            raise serializers.ValidationError({"error": "Invalid credentials."})
+
+        raise serializers.ValidationError({"error": "Email and password are required."})
