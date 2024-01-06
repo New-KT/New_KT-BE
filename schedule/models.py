@@ -17,11 +17,12 @@ class Event(models.Model):
     # 이벤트와 관련된 미팅 정보를 저장하는 텍스트 필드 (비어 있을 수 있음)
     meeting = models.BooleanField(default=False)
     
-    # 이벤트가 하루 종일인지 여부를 나타내는 부울 필드
-    # allDay = models.BooleanField(default=False)
-    
     # 이벤트와 연결된 사용자를 나타내는 외래 키
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')
+    
+    meeting_text = models.TextField(blank=True, null=True)
+    
+    summary = models.TextField(null = True)
     
     def __str__(self):
         return self.title

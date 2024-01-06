@@ -22,5 +22,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
     path('schedule/', include('schedule.urls')),
+    path('meeting/', include('meeting.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),
 ]
