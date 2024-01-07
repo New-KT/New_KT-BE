@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from .serializers import RegisterSerializer, LoginSerializer
+from django.contrib.auth import logout
+from rest_framework.permissions import IsAuthenticated
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -18,3 +21,13 @@ class LoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         response_data = serializer.validated_data
         return Response(response_data, status=status.HTTP_200_OK)
+    
+class LogoutView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        # 사용자 로그아웃
+        logout(request)
+        
+        # 로그아웃 성공 응답
+        return Response({"detail": "로그아웃되었습니다."}, status=status.HTTP_200_OK)

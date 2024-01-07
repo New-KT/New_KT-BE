@@ -36,8 +36,8 @@ class GetUserEventsView(APIView):
                 'id': event.id,
                 'title': event.title,
                 'memo': event.memo,
-                'start': event.start.strftime('%Y-%m-%dT%H:%M:%S'),
-                'end': event.end.strftime('%Y-%m-%dT%H:%M:%S'),
+                'start': (event.start + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'end': (event.end + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
                 'meeting': event.meeting,
             }
             event_list.append(event_data)
@@ -68,6 +68,12 @@ class CreateEventView(APIView):
             start = datetime.fromisoformat(start_str.rstrip('Z'))
             end = datetime.fromisoformat(end_str.rstrip('Z'))
 
+<<<<<<< HEAD
+=======
+            # # UTC로 설정된 datetime 객체로 변환
+            # start = timezone.make_aware(start, timezone.get_current_timezone())
+            # end = timezone.make_aware(end, timezone.get_current_timezone())
+>>>>>>> 379f27ee58dc2c71d796ee7349a2d689489dd25f
 
             # 한국 시간으로 변환
             start_korea = start.astimezone(pytz.timezone('Asia/Seoul'))
@@ -101,6 +107,7 @@ class EventClick(APIView):
     def get(self, request, event_id):
         # event_id에 해당하는 이벤트 가져오기
         event = get_object_or_404(Event, id=event_id)
+<<<<<<< HEAD
 
         # 해당 이벤트의 모든 키워드 가져오기
         keywords = Keyword.objects.filter(meeting=event)
@@ -118,6 +125,11 @@ class EventClick(APIView):
                 'article_titles': [news.title for news in news_list],
             }
             response_list.append(keyword_data)
+=======
+        print(event_id)
+        event = Event.objects.get(id=event_id)
+        print(event)
+>>>>>>> 379f27ee58dc2c71d796ee7349a2d689489dd25f
 
         # 이벤트의 세부 정보를 JSON 형식으로 응답
         if event.meeting:  # meeting이 True일 때
@@ -125,11 +137,21 @@ class EventClick(APIView):
                 'id': event.id,
                 'title': event.title,
                 'memo': event.memo,
+<<<<<<< HEAD
                 'start': event.start.strftime('%Y-%m-%dT%H:%M:%S'),
                 'end': event.end.strftime('%Y-%m-%dT%H:%M:%S'),
                 'meeting': event.meeting,
                 'keywords': response_list,
                 'summary': '',
+=======
+                'start': (event.start + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'end': (event.end + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'meeting': event.meeting,
+                'keyword': '',
+                'summary': '',
+                'article_link': '',
+                'article_title': ''
+>>>>>>> 379f27ee58dc2c71d796ee7349a2d689489dd25f
             }
             print(response_data)
         else:  # meeting이 False일 때
@@ -137,6 +159,7 @@ class EventClick(APIView):
                 'id': event.id,
                 'title': event.title,
                 'memo': event.memo,
+<<<<<<< HEAD
                 'start': event.start.strftime('%Y-%m-%dT%H:%M:%S'),
                 'end': event.end.strftime('%Y-%m-%dT%H:%M:%S'),
                 'meeting': event.meeting,
@@ -145,6 +168,17 @@ class EventClick(APIView):
             }
             print(response_data)
         return Response(response_data)
+=======
+                'start': (event.start + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'end': (event.end + timedelta(hours=9)).strftime('%Y-%m-%dT%H:%M:%S'),
+                'meeting': event.meeting
+            }
+            print(response_data)
+
+        return JsonResponse(response_data)
+
+
+>>>>>>> 379f27ee58dc2c71d796ee7349a2d689489dd25f
 
 
 
