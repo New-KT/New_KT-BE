@@ -4,3 +4,5 @@ signup = http://127.0.0.1:8000/users/register/
 schedule = http://127.0.0.1:8000/schedule/
 
 schedule_add = http://127.0.0.1:8000/schedule/create/
+
+startmeeting클릭 = http://127.0.0.1:8000/meeting/start/
