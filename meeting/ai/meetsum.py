@@ -3,6 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import pandas as pd
 import json
+from meeting.ai.news_summary import *
 
 def summary_meeting(file_path):
     # Set up OpenAI client
@@ -25,13 +26,6 @@ def summary_meeting(file_path):
     # Extract and return the generated response
     response_message = response.choices[0].message.content
     return response_message
-
-def read_concatenate_news(file_path):
-    news = pd.read_csv(file_path, delimiter='\t', header=None, names=['text'])
-    concatenated_text = news['text'].str.cat(sep=' ')
-    print('read_concatenews_mts',concatenated_text)
-    return concatenated_text
-
  
 
 def mts(output_file_path): 
@@ -47,7 +41,18 @@ def mts(output_file_path):
         with open(result_file, 'w', encoding='utf-8') as f:
             json.dump(result_json, f, ensure_ascii=False, indent=2)
             
-            
+def mts2(text):
+    load_dotenv()
+    text = token_check(text)
+    # Call the function and print the result
+    result = summary_meeting(text)
+    if result is not None:
+        result_dict = parse_meeting_result(result)
+        result_json = json.dumps(result_dict, ensure_ascii=False, indent=2)
+        print(result_json)
+        result_file='result.json'
+        with open(result_file, 'w', encoding='utf-8') as f:
+            json.dump(result_json, f, ensure_ascii=False, indent=2)
 
 def parse_meeting_result(result_text):
     result_dict = {

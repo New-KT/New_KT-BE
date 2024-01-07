@@ -18,6 +18,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stt_running = True
+        self.total_data = None
         
     async def connect(self):
 
@@ -42,8 +43,9 @@ class AudioConsumer(AsyncWebsocketConsumer):
 
     async def stt(self):
         print('stt 실행됨')
-        
-        self.stt_running = True
+        print('self.stt_running', self.stt_running)
+        total = []
+   
         RATE = 16000
         CHUNK = int(RATE / 10)  # 100ms
         
@@ -103,7 +105,6 @@ class AudioConsumer(AsyncWebsocketConsumer):
                 start_time = time.time()
                 
                 for response in responses:
-                    total = []
                     
                     stt_save_file.listen_print_loop(response, output_file)
                     if time.time() - start_time >= 60:
@@ -118,7 +119,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
 
                         for word in keywords_list[-2:]:
                             print(word)
-                            result = crawl(word)
+                            result = await crawl(word)
                             print('After crawl() call')
                             
                             keyword_instance = await database_sync_to_async(Keyword.objects.create)(
@@ -134,31 +135,33 @@ class AudioConsumer(AsyncWebsocketConsumer):
                                     print(f"IndexError: list index out of range for i={i}")
                             total.append(result)
                         meeting.meeting_text = meeting_text
-                        await database_sync_to_async(meeting.save)()   
-                        start_time = time.time()
-                        if self.stt_running:
-                            
-                            print('total', total)
-                            # 새로운 부분: 클라이언트에 데이터를 전송
-                            await self.send(text_data=json.dumps({
-                                'type': 'total',
-                                'total': total,
-                            }))
-                        else:
+                        await database_sync_to_async(meeting.save)()
+                        self.total_data = total   
+                        print('self.stt_running_send함수전', self.stt_running)
+                        if not self.stt_running:
+                            print('stt 종료됨')
                             break
+                        start_time = time.time()
 
     async def receive(self, text_data):
-        # 클라이언트로부터 받은 메시지 처리
-        print('클라이언트로부터 받은 메시지:', text_data)
-
-        # 받은 메시지가 "회의 시작"인 경우에만 stt_save_file.py 실행
-        if "회의 시작" in text_data:
-            print('연결됨')
+        data = json.loads(text_data)
+        
+        if data['type'] == 'start_meeting':
+            # "회의 시작" 메시지를 받으면 stt 함수 실행
             await self.stt()
-            # asyncio.ensure_future(self.stt())
-        elif "회의 종료" in text_data:
-            print('연결 종료')
+        elif data['type'] == 'request_meeting_data':
+            # 15초마다 total_data를 요청하는 메시지를 받으면 현재의 total 값을 보내줌
+            print('self.stt_running', self.stt_running)
+            print('self.total_data', self.total_data)
+            if self.stt_running:
+                self.send(text_data=json.dumps({
+                    'meeting': 'total',
+                    'meeting_data': self.total_data,
+                }))
+        elif data['type'] == 'finish_meeting':
+            # "회의 종료" 메시지를 받으면 WebSocket을 종료
             self.stt_running = False
+            print('self.stt_running False로 바뀜', self.stt_running)
             await self.close()
 
             

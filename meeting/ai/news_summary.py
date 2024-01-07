@@ -31,7 +31,7 @@ def read_concatenate_news(file_path, max_tokens=3000):
     if num_tokens >= max_tokens:
         tokens = tokenizer(concatenated_text, "gpt-3.5-turbo")
         concatenated_text = encoding_getter("gpt-3.5-turbo").decode(tokens[:max_tokens])
-        print("readconcatenews_max", concatenated_text)
+        # print("readconcatenews_max", concatenated_text)
         return concatenated_text
     else:
         return concatenated_text

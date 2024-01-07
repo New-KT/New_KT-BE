@@ -3,7 +3,7 @@ from meeting.ai.news_summary import *
 from meeting.ai.make_json import *
 
 
-def crawl(top):
+async def crawl(top):
     node = 'news'  # 크롤링 할 대상
     srcText = top
     sort = 'sim'   # 관련도순
@@ -44,7 +44,7 @@ def crawl(top):
                 naver_news_count += 1
                 if naver_news_count >= 3:
                     break
-    print('article_texts', article_texts)
+    # print('article_texts', article_texts)
     # # 기사 텍스트를 파일에 저장
     # with open('%s_naver_%s_texts.txt' % (srcText, node), 'w', encoding='utf-8') as textfile:
     #     for text in article_texts:
