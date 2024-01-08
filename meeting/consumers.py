@@ -1,13 +1,13 @@
 
 import json, asyncio, time, sys, re, pyaudio, queue
+from threading import Thread
 from google.cloud import speech
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 
-from .ai import stt_save_file
-from meeting.ai.key import *
+from meeting.ai.google_stt_mic import *
+from meeting.ai.extract_keywords import *
 from meeting.ai.crawling_main import *
-from meeting.ai.meetsum import *
 
 from datetime import datetime, timedelta
 from schedule.models import Event
@@ -39,6 +39,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
             print(f"Error connecting: {e}")
 
     async def disconnect(self, close_code):
+        print('disconnect 실행됨')
         pass
 
     async def stt(self):
@@ -60,7 +61,7 @@ class AudioConsumer(AsyncWebsocketConsumer):
             interim_results=True)
 
         start_datetime = datetime.strptime(str(datetime.now()), '%Y-%m-%d %H:%M:%S.%f')
-        start_datetime = start_datetime.replace(microsecond=0)
+        start_datetime = start_datetime.replace(microsecond=0) + timedelta(hours=9)
         end_meeting= start_datetime + timedelta(minutes=20) 
         start_meeting = start_datetime - timedelta(minutes=20)  
             
@@ -88,73 +89,83 @@ class AudioConsumer(AsyncWebsocketConsumer):
                     memo='',
                     meeting=True,
                     user=self.user,
-                    summary='',
             )
         
-        output_file_path = f"meeting_{start_datetime.month}_{start_datetime.day}_{start_datetime.hour}_{start_datetime.minute}.txt"
-        
+        stt_text = ''
+        meeting_text = ''
         keywords_list=[]
-        with open(output_file_path, 'a+', encoding='utf-8') as output_file:
-            with stt_save_file.MicrophoneStream(RATE, CHUNK) as stream:
-                audio_generator = stream.generator()
-                requests = (speech.StreamingRecognizeRequest(audio_content=content)
-                            for content in audio_generator)
+        # with open(output_file_path, 'a+', encoding='utf-8') as output_file:
+        with MicrophoneStream(RATE, CHUNK) as stream:
+            audio_generator = stream.generator()
+            requests = (speech.StreamingRecognizeRequest(audio_content=content)
+                        for content in audio_generator)
 
-                responses = client.streaming_recognize(streaming_config, requests)
+            responses = client.streaming_recognize(streaming_config, requests)
 
-                start_time = time.time()
+            start_time = time.time()
+
+            for response in responses:
                 
-                for response in responses:
-                    
-                    stt_save_file.listen_print_loop(response, output_file)
-                    if time.time() - start_time >= 60:
-                        output_file.seek(0) 
-                        meeting_text = output_file.read().replace('\n', ' ')
+                return_text = listen_print_loop(response)
+                if not self.stt_running:
+                        print('stt 종료됨')
+                        break
+                if len(return_text) >= len(stt_text):
+                    stt_text = return_text
+                if time.time() - start_time >= 60:
+                    meeting_text += stt_text + ' '
+                    meeting.meeting_text = meeting_text
+                    print('stt_text', stt_text)                   
+                    print("Before keyword() call")
+                    print('meeting_text', meeting_text)
+                    keywords_list = keyword(meeting_text, keywords_list)
+                    print("After keyword() call")
+
+                    for word in keywords_list[-2:]:
+                        print(word)
+                        result = await crawl(word)
+                        print('After crawl() call')
                         
-                        print("Before keyword() call")
-                        print('meeting_text', meeting_text)
-                        # keywords_list = keyword(output_file_path, keywords_list)
-                        keywords_list = keyword2(meeting_text, keywords_list)
-                        print("After keyword() call")
+                        keyword_instance = await database_sync_to_async(Keyword.objects.create)(
+                            meeting=meeting, keyword=word, news_summary=result[0]['news_summary']
+                        )
+                        for i in range(3):
+                            try:
+                                await database_sync_to_async(News.objects.create)(
+                                    meeting=meeting, keyword=keyword_instance, title=result[0]['title'][i], link=result[0]['link'][i]
+                                )
+                            except IndexError:
+                                # 인덱스 오류가 발생하면 로그를 남기고 계속 진행
+                                print(f"IndexError: list index out of range for i={i}")
+                        total.append(result)
+                    
+                    await database_sync_to_async(meeting.save)()  
+                    # break
+                    print('self.stt_running_send함수전', self.stt_running)
 
-                        for word in keywords_list[-2:]:
-                            print(word)
-                            result = await crawl(word)
-                            print('After crawl() call')
-                            
-                            keyword_instance = await database_sync_to_async(Keyword.objects.create)(
-                                meeting=meeting, keyword=word, news_summary=result[0]['news_summary']
-                            )
-                            for i in range(3):
-                                try:
-                                    await database_sync_to_async(News.objects.create)(
-                                        meeting=meeting, keyword=keyword_instance, title=result[0]['title'][i], link=result[0]['link'][i]
-                                    )
-                                except IndexError:
-                                    # 인덱스 오류가 발생하면 로그를 남기고 계속 진행
-                                    print(f"IndexError: list index out of range for i={i}")
-                            total.append(result)
-                        meeting.meeting_text = meeting_text
-                        await database_sync_to_async(meeting.save)()
-                        self.total_data = total   
-                        print('self.stt_running_send함수전', self.stt_running)
-                        if not self.stt_running:
-                            print('stt 종료됨')
-                            break
-                        start_time = time.time()
-
+            
+                    self.total_data = total 
+                    stt_text = ''
+                    start_time = time.time()
+    def start_stt_thread(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.stt())
+        
     async def receive(self, text_data):
         data = json.loads(text_data)
         
         if data['type'] == 'start_meeting':
             # "회의 시작" 메시지를 받으면 stt 함수 실행
-            await self.stt()
+            # await self.stt()
+            stt_thread = Thread(target=self.start_stt_thread)
+            stt_thread.start()
         elif data['type'] == 'request_meeting_data':
             # 15초마다 total_data를 요청하는 메시지를 받으면 현재의 total 값을 보내줌
             print('self.stt_running', self.stt_running)
-            print('self.total_data', self.total_data)
+            # print('self.total_data', self.total_data)
             if self.stt_running:
-                self.send(text_data=json.dumps({
+                await self.send(text_data=json.dumps({
                     'meeting': 'total',
                     'meeting_data': self.total_data,
                 }))

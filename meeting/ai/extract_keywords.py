@@ -1,7 +1,23 @@
-import os
+from meeting.ai.gpt_api import *
 from openai import OpenAI
-from dotenv import load_dotenv
-import pandas as pd
+import re
+
+def keyword(text,keywords_list):
+    load_dotenv()
+    text = token_check(text)
+    result = extract_keywords_from_meeting(text,keywords_list)
+   
+    # 문자열 변수에 결과 추가
+    result_string = f"{result}"
+
+    lines = result_string.split(',')
+    for line in lines:
+        keywords_list.append(line)
+
+    # keywords_list = re.findall(r'"([^"]*)"', str(keywords_list))
+    # 결과 출력
+    print(keywords_list)
+    return keywords_list
 
 def extract_keywords_from_meeting(file_path,keywords_list):
     # Set up OpenAI client
@@ -25,8 +41,3 @@ def extract_keywords_from_meeting(file_path,keywords_list):
     response_message = response.choices[0].message.content
     return response_message
 
-def read_concatenate_news(file_path):
-    news = pd.read_csv(file_path, delimiter='\t', header=None, names=['text'])
-    concatenated_text = news['text'].str.cat(sep=' ')
-    print('read_concatenews',concatenated_text)
-    return concatenated_text
