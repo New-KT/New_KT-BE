@@ -3,7 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import pandas as pd
 import json
-from meeting.ai.news_summary import *
+from meeting.ai.gpt_api import *
 
 def summary_meeting(file_path):
     # Set up OpenAI client
@@ -28,31 +28,29 @@ def summary_meeting(file_path):
     return response_message
  
 
-def mts(output_file_path): 
+def mts(summary_text): 
     load_dotenv()
-    file_path= read_concatenate_news(output_file_path)
-    # Call the function and print the result
-    result = summary_meeting(file_path)
-    if result is not None:
-        result_dict = parse_meeting_result(result)
-        result_json = json.dumps(result_dict, ensure_ascii=False, indent=2)
-        print(result_json)
-        result_file='result.json'
-        with open(result_file, 'w', encoding='utf-8') as f:
-            json.dump(result_json, f, ensure_ascii=False, indent=2)
-            
-def mts2(text):
-    load_dotenv()
-    text = token_check(text)
+    if summary_text is None:
+        return {
+            "회의 제목": "",
+            "주요 이슈 및 진행상황": "",
+            "새로운 상황 및 공지사항": "",
+            "추가 안건":"" 
+        }
+    text = token_check(summary_text)
     # Call the function and print the result
     result = summary_meeting(text)
+       
     if result is not None:
-        result_dict = parse_meeting_result(result)
-        result_json = json.dumps(result_dict, ensure_ascii=False, indent=2)
-        print(result_json)
-        result_file='result.json'
-        with open(result_file, 'w', encoding='utf-8') as f:
-            json.dump(result_json, f, ensure_ascii=False, indent=2)
+        return parse_meeting_result(result)
+    else:
+        return {
+            "회의 제목": "",
+            "주요 이슈 및 진행상황": "",
+            "새로운 상황 및 공지사항": "",
+            "추가 안건":"" 
+        }
+            
 
 def parse_meeting_result(result_text):
     result_dict = {

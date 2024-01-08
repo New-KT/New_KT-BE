@@ -20,3 +20,13 @@ class News(models.Model):
 
     def __str__(self):
         return f'{self.meeting.summary} - {self.title}'
+    
+class MeetingSummary(models.Model):
+    meeting = models.ForeignKey(Event, on_delete=models.CASCADE)
+    conference_title = models.TextField(null = True)
+    issues_progress = models.TextField(null = True)
+    situation_announcement = models.TextField(null = True)
+    agenda = models.TextField(null = True)
+    
+    def __str__(self):
+        return f'{self.meeting.summary} - {self.summary}'

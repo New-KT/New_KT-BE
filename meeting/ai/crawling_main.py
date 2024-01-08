@@ -1,7 +1,7 @@
-from meeting.ai.news_crawling import *
-from meeting.ai.news_summary import *
-from meeting.ai.make_json import *
-
+from meeting.ai.gpt_api import *
+import re, requests, json, urllib.request, datetime, os
+from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 
 async def crawl(top):
     node = 'news'  # 크롤링 할 대상
@@ -19,11 +19,6 @@ async def crawl(top):
         getPostData(post, jsonResult, cnt)
 
     print('전체 검색 : %d 건' % total)
-
-    # with open('%s_naver_%s.json' % (srcText, node), 'w', encoding='utf8') as outfile:
-    #     jsonFile = json.dumps(jsonResult, indent=4, sort_keys=True, ensure_ascii=False)
-    #     outfile.write(jsonFile)
-
     print("가져온 데이터 : %d 건" % (cnt))
     # print('%s_naver_%s.json SAVED' % (srcText, node))
 
@@ -44,18 +39,7 @@ async def crawl(top):
                 naver_news_count += 1
                 if naver_news_count >= 3:
                     break
-    # print('article_texts', article_texts)
-    # # 기사 텍스트를 파일에 저장
-    # with open('%s_naver_%s_texts.txt' % (srcText, node), 'w', encoding='utf-8') as textfile:
-    #     for text in article_texts:
-    #         text=preprocess_text(text)
-    #         textfile.write(text + '\n')
-    
-    #gpt요약결과 저장        
-    # file_path='%s_naver_%s_texts.txt' % (srcText, node)
-    # result=summarize_news(file_path)
-    result= summarize_news2(article_texts)
-    # save_to_json(result,srcText, node)
+    result= summarize_news(article_texts)
 
     naver_news_items = [item for item in jsonResult if item['link'].startswith('https://n.news.naver.com/mnews/')][:3]
 
@@ -78,13 +62,106 @@ async def crawl(top):
          
         values['news_summary'] = result
         
-    # jsonlist의 values만 가져와서 리스트로 만듦
-    # print('json 전',jsonlist.values())
-    # print('json 후',json.dump(jsonlist.values(), ensure_ascii=False))
     result_list = list(jsonlist.values())   
-    # # print(result_list)
-    # with open('%s_naver_%s_merge.json' % (srcText, node), 'w', encoding='utf8') as outfile:
-    #     mergeFile = json.dumps(result_list, indent=4, ensure_ascii=False)
-    #     outfile.write(mergeFile)
         
     return result_list
+
+
+def mkjs(post):
+# 뉴스의 제목과 링크를 저장할 리스트
+    titles = []
+    links = []
+
+    # 뉴스의 제목과 링크를 추출하여 리스트에 저장
+    title = post['title']
+    title = re.sub("<.*?>", "", title)
+    titles.append(title)
+
+    org_link = post['link']
+    links.append(org_link)
+
+        
+    return titles, links
+
+# 요청형식 만들기
+def getRequestUrl(url):
+    load_dotenv()
+
+    req = urllib.request.Request(url)
+    req.add_header("X-Naver-Client-Id", os.environ.get("client_id"))
+    req.add_header("X-Naver-Client-Secret", os.environ.get("client_secret"))
+
+    try:
+        response = urllib.request.urlopen(req)
+        if response.getcode() == 200:
+            print("[%s] Url Request Success" % datetime.datetime.now())
+            return response.read().decode('utf-8')
+    except Exception as e:
+        print(e)
+        print("[%s] Error for URL : %s" % (datetime.datetime.now(), url))
+        return None
+
+# 네이버 검색 API를 통해 뉴스 검색
+def getNaverSearch(node, srcText, start, display, sort):
+    base = "https://openapi.naver.com/v1/search"
+    node = "/%s.json" % node
+    parameters = "?query=%s&start=%s&display=%s&sort=%s" % (urllib.parse.quote(srcText), start, display, sort)
+
+    url = base + node + parameters
+    responseDecode = getRequestUrl(url)
+
+    if responseDecode == None:
+        print(f"Error: No response received for URL: {url}")
+        return None
+    else:
+        # print(f"Response received: {responseDecode}")
+        return json.loads(responseDecode)
+
+# 뉴스 기사에서 텍스트 추출
+def get_article_text(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        html = response.text
+
+        soup = BeautifulSoup(html, 'html.parser')
+        article_text = soup.find('article').get_text(separator='\n', strip=True)
+        return article_text
+
+    except Exception as e:
+        print(f"Error while fetching article from {url}: {e}")
+        return None
+
+# 결과 저장
+def getPostData(post, jsonResult, cnt):
+    title = post['title']
+    title = re.sub("<.*?>", "", title)
+
+    description = post['description']
+    description = re.sub("<.*?>", "", description)
+
+    org_link = post['link']
+    
+    pDate = datetime.datetime.strptime(post['pubDate'], '%a, %d %b %Y %H:%M:%S +0900') 
+    pDate = pDate.strftime('%Y-%m-%d %H:%M:%S')
+
+    jsonResult.append({'cnt': cnt, 'title': title, 'description': description, 
+                       'link': org_link, 'pDate': pDate})
+    return None
+
+def preprocess_text(text):
+    # HTML 태그 제거
+    text = re.sub(r'<.*?>', '', text)
+    # 특수문자 및 숫자 제거
+    text = re.sub(r'[^a-zA-Z가-힣\s]', '', text)
+    # 여러 공백을 단일 공백으로 변환
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+def summarize_news(text):
+    query = token_check(text)
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": f"뉴스에 대한 결과야. 요약설명해 {query}"}]
+    )
+    return response.choices[0].message.content.strip()

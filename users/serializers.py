@@ -1,18 +1,21 @@
 from django.contrib.auth.models import User # User 모델
 from django.contrib.auth.password_validation import validate_password # Django의 기본 pw 검증 도구
-# from django.contrib.auth.backends
-
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token # Token 모델
 
 from rest_framework.validators import UniqueValidator # 이메일 중복 방지를 위한 검증 도구
 from django.contrib.auth import authenticate
+
 # 회원가입 시리얼라이저
 class RegisterSerializer(serializers.ModelSerializer):
 
     email = serializers.EmailField(
         required=True,
-        validators=[UniqueValidator(queryset=User.objects.all())], # 이메일에 대한 중복 검증
+        validators=[
+            
+            UniqueValidator(queryset=User.objects.all(), message="This email is already registered."),
+        
+        ]
     )
     password = serializers.CharField(
         write_only=True,
@@ -24,14 +27,34 @@ class RegisterSerializer(serializers.ModelSerializer):
         required=True,
     )
 
+    allowed_domain = "aivle.kt.co.kr"
+    
     class Meta:
         model = User
         fields = ( 'email', 'password', 'password2')
 
-    def validate(self, data): # password과 password2의 일치 여부 확인
+    def validate_email_format(self, value):
+        # 이메일 형식이 올바른지 검증하는 메서드
+        from django.core.exceptions import ValidationError
+        from django.core.validators import validate_email
+
+        try:
+            validate_email(value)
+        except ValidationError:
+            raise serializers.ValidationError("Not a valid email format.")
+        
+        return value
+
+    def validate(self, data):
+        # 비밀번호와 비밀번호 확인이 일치하고 이메일 형식이 올바른지, 특정 도메인인지 검증하는 메서드
         if data['password'] != data['password2']:
-            raise serializers.ValidationError(
-                {"password": "Password fields didn't match."})
+            raise serializers.ValidationError({"password": "The password does not match."})
+
+        data['email'] = self.validate_email_format(data['email'])
+        
+        # 특정 도메인(@aivle.kt.co.kr)으로만 가입 가능하도록 검증
+        if not data['email'].endswith(self.allowed_domain):
+            raise serializers.ValidationError("You can sign up via aivle e-mail. example : 'example@aivle.kt.co.kr'")
         
         return data
 
